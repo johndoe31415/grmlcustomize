@@ -1,0 +1,69 @@
+#!/bin/bash -e
+#	grmlcustomize - Customize ISO images for the GRML Linux distribution
+#	Copyright (C) 2019-2019 Johannes Bauer
+#
+#	This file is part of grmlcustomize.
+#
+#	grmlcustomize is free software; you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation; this program is ONLY licensed under
+#	version 3 of the License, later versions are explicitly excluded.
+#
+#	grmlcustomize is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
+#
+#	You should have received a copy of the GNU General Public License
+#	along with grmlcustomize; if not, write to the Free Software
+#	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#	Johannes Bauer <JohannesBauer@gmx.de>
+
+ROOT_FS_DIR="$1"
+ISO_DIR="$2"
+CONFIG_DIR="$3"
+
+for TTYNO in 1 2 3 4 5 6 7 8 9 10 11 12; do
+	mkdir -p "${ROOT_FS_DIR}/etc/systemd/system/getty@tty${TTYNO}.service.d/"
+done
+
+# Can't get those to run on tty9, but I don't really think they're particularly
+# useful anyways.
+#sed 's/tty1/tty9/g;' "${ROOT_FS_DIR}/etc/systemd/system/getty@tty1.service.d/override.conf" >"${ROOT_FS_DIR}/etc/systemd/system/getty@tty9.service.d/override.conf"
+#sed 's/tty2/tty8/g; s/\/bin\/zsh/\/bin\/bash/g;' "${ROOT_FS_DIR}/etc/systemd/system/getty@tty2.service.d/override.conf" >"${ROOT_FS_DIR}/etc/systemd/system/getty@tty8.service.d/override.conf"
+
+for TTYNO in 1 2 3 4 5 6; do
+	# No nonsense terminals
+	cat >"${ROOT_FS_DIR}/etc/systemd/system/getty@tty${TTYNO}.service.d/override.conf" <<EOF
+[Service]
+Type=idle
+Restart=always
+StandardInput=tty
+StandardOutput=tty
+TTYPath=/dev/tty${TTYNO}
+TTYVTDisallocate=no
+ExecStart=
+ExecStart=-/sbin/agetty --autologin root --noclear %I \$TERM
+
+[Unit]
+Description=autologin on ${TTYNO}
+After=grml-autoconfig.service
+EOF
+done
+
+for TTYNO in 7 8 9 10; do
+	rm -fr "${ROOT_FS_DIR}/etc/systemd/system/getty@tty${TTYNO}.service.d"
+done
+
+for TTYNO in 1 2 3 4 5 6 7 8 9 10 11 12; do
+	# Remove entire directory if empty
+	rmdir "${ROOT_FS_DIR}/etc/systemd/system/getty@tty${TTYNO}.service.d" >/dev/null 2>&1 | true
+
+	if [ -d "${ROOT_FS_DIR}/etc/systemd/system/getty@tty${TTYNO}.service.d" ]; then
+		chmod 755 "${ROOT_FS_DIR}/etc/systemd/system/getty@tty${TTYNO}.service.d"
+	fi
+	if [ -f "${ROOT_FS_DIR}/etc/systemd/system/getty@tty${TTYNO}.service.d/override.conf" ]; then
+		chmod 644 "${ROOT_FS_DIR}/etc/systemd/system/getty@tty${TTYNO}.service.d/override.conf"
+	fi
+done

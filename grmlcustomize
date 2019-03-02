@@ -30,15 +30,15 @@ class GrmlCustomizer():
 	def __init__(self, args):
 		self._args = args
 		self._tempdir = None
-			
+
 	@property
 	def iso_dir(self):
 		return self._tempdir + "/iso"
-	
+
 	@property
 	def iso_ro_dir(self):
 		return self._tempdir + "/iso_ro"
-	
+
 	@property
 	def rootfs_dir(self):
 		return self._tempdir + "/rootfs"
@@ -46,43 +46,70 @@ class GrmlCustomizer():
 	@property
 	def squashfs_file(self):
 		return self.iso_dir + "/live/grml64-full/grml64-full.squashfs"
-	
+
 	@property
 	def temp_squashfs_file(self):
 		return self._tempdir + "temporary.squashfs"
 
+	@property
+	def config_dir(self):
+		return os.path.realpath(self._args.config_dir)
+
+	def _log(self, logstr):
+		if self._args.verbose >= 1:
+			print(logstr, file = sys.stderr)
+
 	def _execute(self, cmd):
+		if self._args.verbose >= 2:
+			print(" ".join(cmd))
 		subprocess.check_call(cmd)
 
 	def _recreate_iso(self):
-		self._execute([ "mkisofs", "-o", self._args.out_iso, "-input-charset", "utf-8", "-no-emul-boot", "-boot-load-size", "4", "-boot-info-table", "-b", "boot/isolinux/isolinux.bin", "-c", "boot/isolinux/boot.cat", self.iso_dir ])
+		self._log("Recreating ISO image from %s to %s" % (self.iso_dir, self._args.out_iso))
+		self._execute([ "mkisofs", "-o", self._args.out_iso, "-J", "-R", "-input-charset", "utf-8", "-no-emul-boot", "-boot-load-size", "4", "-boot-info-table", "-b", "boot/isolinux/isolinux.bin", "-c", "boot/isolinux/boot.cat", self.iso_dir ])
 
 	def _repack_squashfs(self):
 		os.unlink(self.squashfs_file)
-		self._execute([ "mksquashfs", self.iso_dir, self.temp_squashfs_file ])
+		self._log("Repacking SquashFS %s into %s" % (self.rootfs_dir, self.temp_squashfs_file))
+		self._execute([ "mksquashfs", self.rootfs_dir, self.temp_squashfs_file, "-comp", self._args.compression ])
 		os.rename(self.temp_squashfs_file, self.squashfs_file)
 		self._recreate_iso()
 
-	def _execute_hooks(self):
-		# TODO
+	def _user_pause(self):
+		if self._args.wait:
+			print("Waiting for user to make changes to: %s" % (self.rootfs_dir))
+			input("Press ENTER to continue...")
 		self._repack_squashfs()
 
+	def _execute_hooks(self):
+		for filename in sorted(os.listdir(self._args.hooks)):
+			full_filename = self._args.hooks + "/" + filename
+			mode = os.stat(full_filename).st_mode
+			if os.path.isfile(full_filename) and ((mode & 0o500) == 0o500):
+				# It's a file and it's executable
+				self._log("Running hook %s" % (filename))
+				self._execute([ full_filename, self.rootfs_dir, self.iso_dir, self.config_dir ])
+		self._user_pause()
+
 	def _unpack_squashfs(self):
-		subprocess.check_call([ "unsquashfs", "-d", self.rootfs_dir, self.squashfs_file ])
+		self._log("Unpacking SquashFS %s into %s" % (self.squashfs_file, self.rootfs_dir))
+		self._execute([ "unsquashfs", "-d", self.rootfs_dir, self.squashfs_file ])
 		self._execute_hooks()
 
 	def _copy_iso_to_fs(self):
-		subprocess.check_call([ "cp", "-a", self.iso_ro_dir + "/.", self.iso_dir ])
+		self._execute([ "cp", "-a", self.iso_ro_dir + "/.", self.iso_dir ])
+		self._log("Copying ISO content from %s to %s" % (self.iso_ro_dir, self.iso_dir))
 		self._unpack_squashfs()
 
 	def _mount_iso(self):
 		try:
 			os.makedirs(self.iso_dir)
 			os.makedirs(self.iso_ro_dir)
-			subprocess.check_call([ "mount", "-o", "ro", self._args.in_iso, self.iso_ro_dir ])
+			self._log("Mounting ISO image %s at %s" % (self._args.in_iso, self.iso_ro_dir))
+			self._execute([ "mount", "-o", "ro", self._args.in_iso, self.iso_ro_dir ])
 			self._copy_iso_to_fs()
 		finally:
-			subprocess.check_call([ "umount", self.iso_ro_dir ])
+			self._execute([ "umount", self.iso_ro_dir ])
 
 	def run(self):
 		with tempfile.TemporaryDirectory(dir = self._args.tempdir, prefix = "grml_") as self._tempdir:
@@ -90,8 +117,12 @@ class GrmlCustomizer():
 
 
 parser = FriendlyArgumentParser()
+parser.add_argument("-c", "--config-dir", metavar = "dirname", default = "config", help = "Gives the configuration directory that is passed to hooks. Defaults to %(default)s.")
+parser.add_argument("-p", "--compression", choices = [ "gzip", "xz" ], default = "gzip", help = "Compression to use for SquashFS. gzip is fast, but creates larger images than xz. Defaults to %(default)s, choices are %(choices)s.")
 parser.add_argument("-k", "--hooks", metavar = "dirname", type = str, default = "hooks", help = "Directory in which customization hooks are kept. Defaults to %(default)s.")
 parser.add_argument("-t", "--tempdir", metavar = "dirname", type = str, default = "/tmp", help = "Directory in which temporary files are unpacked. Defaults to %(default)s.")
+parser.add_argument("-w", "--wait", action = "store_true", help = "After applying all hooks, pause for the user to manually change the root tree as they see fit.")
+parser.add_argument("-v", "--verbose", action = "count", default = 0, help = "Print more verbose information at each step. Can be specified more than once.")
 parser.add_argument("in_iso", metavar = "in_iso", type = str, help = "Unmodified original GRML ISO input image")
 parser.add_argument("out_iso", metavar = "out_iso", type = str, help = "Customized GRML ISO output image")
 args = parser.parse_args(sys.argv[1:])

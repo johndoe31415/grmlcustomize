@@ -1,0 +1,33 @@
+#!/bin/bash -e
+#	grmlcustomize - Customize ISO images for the GRML Linux distribution
+#	Copyright (C) 2019-2019 Johannes Bauer
+#
+#	This file is part of grmlcustomize.
+#
+#	grmlcustomize is free software; you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation; this program is ONLY licensed under
+#	version 3 of the License, later versions are explicitly excluded.
+#
+#	grmlcustomize is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
+#
+#	You should have received a copy of the GNU General Public License
+#	along with grmlcustomize; if not, write to the Free Software
+#	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#	Johannes Bauer <JohannesBauer@gmx.de>
+
+ROOT_FS_DIR="$1"
+ISO_DIR="$2"
+CONFIG_DIR="$3"
+
+# Set a simple password so that we aren't asked at boot
+sed 's/\(append.*\)/\1 nowelcome lang=de ssh=x/g;' -i "${ISO_DIR}/boot/isolinux/grml64_full_default.cfg"
+
+# But to not create a security issue, we disable password authentication
+# altogether
+sed 's/^PasswordAuthentication.*//g;' -i "${ROOT_FS_DIR}/etc/ssh/sshd_config"
+echo "PasswordAuthentication no" >>"${ROOT_FS_DIR}/etc/ssh/sshd_config"

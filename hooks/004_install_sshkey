@@ -1,0 +1,47 @@
+#!/bin/bash -e
+#	grmlcustomize - Customize ISO images for the GRML Linux distribution
+#	Copyright (C) 2019-2019 Johannes Bauer
+#
+#	This file is part of grmlcustomize.
+#
+#	grmlcustomize is free software; you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation; this program is ONLY licensed under
+#	version 3 of the License, later versions are explicitly excluded.
+#
+#	grmlcustomize is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
+#
+#	You should have received a copy of the GNU General Public License
+#	along with grmlcustomize; if not, write to the Free Software
+#	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#	Johannes Bauer <JohannesBauer@gmx.de>
+
+ROOT_FS_DIR="$1"
+ISO_DIR="$2"
+CONFIG_DIR="$3"
+
+mkdir -p "${ROOT_FS_DIR}/root/.ssh"
+chmod 700 "${ROOT_FS_DIR}/root/.ssh"
+chown root:root "${ROOT_FS_DIR}/root/.ssh"
+touch "${ROOT_FS_DIR}/root/.ssh/authorized_keys"
+chown root:root "${ROOT_FS_DIR}/root/.ssh/authorized_keys"
+
+UID_GID=`stat -c '%u:%g' "${ROOT_FS_DIR}/home/grml"`
+mkdir -p "${ROOT_FS_DIR}/home/grml/.ssh"
+chmod 700 "${ROOT_FS_DIR}/home/grml/.ssh"
+chown "$UID_GID" "${ROOT_FS_DIR}/home/grml/.ssh"
+touch "${ROOT_FS_DIR}/home/grml/.ssh/authorized_keys"
+chown "$UID_GID" "${ROOT_FS_DIR}/home/grml/.ssh/authorized_keys"
+
+PUBKEY_FILES="/root/.ssh/id_ed25519.pub /root/.ssh/id_rsa.pub"
+for PUBKEY_FILE in "${CONFIG_DIR}/ssh-keys/"*; do
+	if [ -f "$PUBKEY_FILE" ]; then
+		echo "Installing ssh public key $PUBKEY_FILE"
+		cat "$PUBKEY_FILE" >>"${ROOT_FS_DIR}/root/.ssh/authorized_keys"
+		cat "$PUBKEY_FILE" >>"${ROOT_FS_DIR}/home/grml/.ssh/authorized_keys"
+	fi
+done
