@@ -66,7 +66,13 @@ class GrmlCustomizer():
 
 	def _recreate_iso(self):
 		self._log("Recreating ISO image from %s to %s" % (self.iso_dir, self._args.out_iso))
-		self._execute([ "mkisofs", "-o", self._args.out_iso, "-J", "-R", "-input-charset", "utf-8", "-no-emul-boot", "-boot-load-size", "4", "-boot-info-table", "-b", "boot/isolinux/isolinux.bin", "-c", "boot/isolinux/boot.cat", self.iso_dir ])
+		cmd = [ "xorriso", "-as", "mkisofs" ]
+		cmd += [ "-o", self._args.out_iso, "-J", "-r", "-l", "-input-charset", "utf-8" ]
+		cmd += [ "-no-emul-boot", "-boot-load-size", "4", "-boot-info-table", "-b", "boot/isolinux/isolinux.bin", "-c", "boot/isolinux/boot.cat" ]
+		cmd += [ "-isohybrid-mbr", self.rootfs_dir + "/usr/lib/ISOLINUX/isohdpfx.bin", "-eltorito-alt-boot", "-e", "boot/efi.img", "-no-emul-boot", "-isohybrid-gpt-basdat" ]
+		cmd += [ "-no-pad" ]
+		cmd += [ self.iso_dir ]
+		self._execute(cmd)
 
 	def _repack_squashfs(self):
 		os.unlink(self.squashfs_file)
