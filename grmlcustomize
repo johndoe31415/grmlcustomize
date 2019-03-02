@@ -1,0 +1,100 @@
+#!/usr/bin/python3
+#	grmlcustomize - Customize ISO images for the GRML Linux distribution
+#	Copyright (C) 2019-2019 Johannes Bauer
+#
+#	This file is part of grmlcustomize.
+#
+#	grmlcustomize is free software; you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation; this program is ONLY licensed under
+#	version 3 of the License, later versions are explicitly excluded.
+#
+#	grmlcustomize is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
+#
+#	You should have received a copy of the GNU General Public License
+#	along with grmlcustomize; if not, write to the Free Software
+#	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#	Johannes Bauer <JohannesBauer@gmx.de>
+
+import os
+import sys
+import subprocess
+import tempfile
+from FriendlyArgumentParser import FriendlyArgumentParser
+
+class GrmlCustomizer():
+	def __init__(self, args):
+		self._args = args
+		self._tempdir = None
+			
+	@property
+	def iso_dir(self):
+		return self._tempdir + "/iso"
+	
+	@property
+	def iso_ro_dir(self):
+		return self._tempdir + "/iso_ro"
+	
+	@property
+	def rootfs_dir(self):
+		return self._tempdir + "/rootfs"
+
+	@property
+	def squashfs_file(self):
+		return self.iso_dir + "/live/grml64-full/grml64-full.squashfs"
+	
+	@property
+	def temp_squashfs_file(self):
+		return self._tempdir + "temporary.squashfs"
+
+	def _execute(self, cmd):
+		subprocess.check_call(cmd)
+
+	def _recreate_iso(self):
+		self._execute([ "mkisofs", "-o", self._args.out_iso, "-input-charset", "utf-8", "-no-emul-boot", "-boot-load-size", "4", "-boot-info-table", "-b", "boot/isolinux/isolinux.bin", "-c", "boot/isolinux/boot.cat", self.iso_dir ])
+
+	def _repack_squashfs(self):
+		os.unlink(self.squashfs_file)
+		self._execute([ "mksquashfs", self.iso_dir, self.temp_squashfs_file ])
+		os.rename(self.temp_squashfs_file, self.squashfs_file)
+		self._recreate_iso()
+
+	def _execute_hooks(self):
+		# TODO
+		self._repack_squashfs()
+
+	def _unpack_squashfs(self):
+		subprocess.check_call([ "unsquashfs", "-d", self.rootfs_dir, self.squashfs_file ])
+		self._execute_hooks()
+
+	def _copy_iso_to_fs(self):
+		subprocess.check_call([ "cp", "-a", self.iso_ro_dir + "/.", self.iso_dir ])
+		self._unpack_squashfs()
+
+	def _mount_iso(self):
+		try:
+			os.makedirs(self.iso_dir)
+			os.makedirs(self.iso_ro_dir)
+			subprocess.check_call([ "mount", "-o", "ro", self._args.in_iso, self.iso_ro_dir ])
+			self._copy_iso_to_fs()
+		finally:
+			subprocess.check_call([ "umount", self.iso_ro_dir ])
+
+	def run(self):
+		with tempfile.TemporaryDirectory(dir = self._args.tempdir, prefix = "grml_") as self._tempdir:
+			self._mount_iso()
+
+
+parser = FriendlyArgumentParser()
+parser.add_argument("-k", "--hooks", metavar = "dirname", type = str, default = "hooks", help = "Directory in which customization hooks are kept. Defaults to %(default)s.")
+parser.add_argument("-t", "--tempdir", metavar = "dirname", type = str, default = "/tmp", help = "Directory in which temporary files are unpacked. Defaults to %(default)s.")
+parser.add_argument("in_iso", metavar = "in_iso", type = str, help = "Unmodified original GRML ISO input image")
+parser.add_argument("out_iso", metavar = "out_iso", type = str, help = "Customized GRML ISO output image")
+args = parser.parse_args(sys.argv[1:])
+
+customizer = GrmlCustomizer(args)
+customizer.run()
