@@ -10,7 +10,7 @@ Anyways, this script first loop-mounts the ISO image, then unpacks the
 contained squashfs file system, executes some customization hooks and repacks
 the SquashFS and ISO.
 
-# Usage
+## Usage
 It's pretty straightforward. The help page should explain things:
 
 ```
@@ -77,10 +77,10 @@ Written to medium : 749248 sectors at LBA 0
 Writing to 'stdio:my_own_grml.iso' completed successfully.
 ```
 
-# Dependencies
+## Dependencies
 grmlcustomize needs a base Grml image, Python3 and xorriso.
 
-# Thanks
+## Thanks
 Grml is amazing. This is just boilerplate code, all the hard work was done by
 them. [Go check it out!](https://www.grml.org)
 
