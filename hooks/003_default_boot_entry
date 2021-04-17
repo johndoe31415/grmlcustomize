@@ -24,7 +24,11 @@ ROOT_FS_DIR="$1"
 ISO_DIR="$2"
 CONFIG_DIR="$3"
 
-# Set a simple password so that we aren't asked at boot
+# Set German as default language, activate sshd and set a simple password so
+# that we aren't asked at boot. Both entries here are needed so that this is
+# the default for both UEFI boot (first entry) as well as BIOS boot (second
+# entry)
+sed 's/^\(\s\+linux.*\)/\1 nowelcome lang=de ssh=x/g;' -i "${ISO_DIR}/boot/grub/grml64full_default.cfg"
 sed 's/^\(\s\+append.*\)/\1 nowelcome lang=de ssh=x/g;' -i "${ISO_DIR}/boot/isolinux/default.cfg"
 
 # But to not create a security issue, we disable password authentication
