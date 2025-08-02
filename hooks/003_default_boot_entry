@@ -28,7 +28,7 @@ CONFIG_DIR="$3"
 # that we aren't asked at boot. Both entries here are needed so that this is
 # the default for both UEFI boot (first entry) as well as BIOS boot (second
 # entry)
-sed 's/^\(\s\+linux.*\)/\1 nowelcome lang=de ssh=x/g;' -i "${ISO_DIR}/boot/grub/grml64full_default.cfg"
+sed 's/^\(\s\+linux.*\)/\1 nowelcome lang=de ssh=x/g;' -i "${ISO_DIR}/boot/grub/grmlfullamd64_default.cfg"
 sed 's/^\(\s\+append.*\)/\1 nowelcome lang=de ssh=x/g;' -i "${ISO_DIR}/boot/isolinux/default.cfg"
 
 # But to not create a security issue, we disable password authentication

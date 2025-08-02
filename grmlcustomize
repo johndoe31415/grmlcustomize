@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #	grmlcustomize - Customize ISO images for the GRML Linux distribution
-#	Copyright (C) 2019-2020 Johannes Bauer
+#	Copyright (C) 2019-2025 Johannes Bauer
 #
 #	This file is part of grmlcustomize.
 #
@@ -45,7 +45,7 @@ class GrmlCustomizer():
 
 	@property
 	def squashfs_file(self):
-		return self.iso_dir + "/live/grml64-full/grml64-full.squashfs"
+		return f"{self.iso_dir}/live/{self._args.grml_internal_name}/{self._args.grml_internal_name}.squashfs"
 
 	@property
 	def temp_squashfs_file(self):
@@ -129,6 +129,7 @@ class GrmlCustomizer():
 
 
 parser = FriendlyArgumentParser()
+parser.add_argument("--grml-internal-name", metavar = "name", default = "grml-full-amd64", help = "Determines where the SquasFS is found inside GRML. Was 'grml64-full' for previous versions (e.g., 2021.07), now defaults to %(default)s.")
 parser.add_argument("-c", "--config-dir", metavar = "dirname", default = "config", help = "Gives the configuration directory that is passed to hooks. Defaults to %(default)s.")
 parser.add_argument("-p", "--compression", choices = [ "gzip", "xz" ], default = "gzip", help = "Compression to use for SquashFS. gzip is fast, but creates larger images than xz. Defaults to %(default)s, choices are %(choices)s.")
 parser.add_argument("-k", "--hooks", metavar = "dirname", type = str, default = "hooks", help = "Directory in which customization hooks are kept. Defaults to %(default)s.")
